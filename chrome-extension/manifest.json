@@ -1,0 +1,27 @@
+{
+  "manifest_version": 3,
+  "name": "Browser Habit Tracker",
+  "version": "1.0.0",
+  "description": "Tracks tab activity and pushes sessions to local PostgreSQL via Bridge API",
+
+  "permissions": [
+    "tabs",
+    "alarms",
+    "storage",
+    "idle",
+    "windows"
+  ],
+
+  "host_permissions": [
+    "http://localhost:3737/*"
+  ],
+
+  "background": {
+    "service_worker": "background.js"
+  },
+
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Habit Tracker"
+  }
+}

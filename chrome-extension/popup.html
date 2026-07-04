@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Habit Tracker</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      width: 292px;
+      background: #161618;
+      color: #d4d2c8;
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      font-size: 13px;
+      user-select: none;
+    }
+
+    /* ── Header ── */
+    .header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 14px;
+      border-bottom: 1px solid #252527;
+    }
+
+    .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .dot.active  { background: #1D9E75; animation: pulse 2s ease-in-out infinite; }
+    .dot.idle    { background: #444441; animation: none; }
+    .dot.error   { background: #D85A30; animation: none; }
+
+    @keyframes pulse {
+      0%,100% { opacity: 1;   box-shadow: 0 0 0 0   rgba(29,158,117,0.5); }
+      50%      { opacity: 0.8; box-shadow: 0 0 0 5px rgba(29,158,117,0);   }
+    }
+
+    .header-text { flex: 1; }
+    .header-name { font-weight: 500; color: #e6e4de; font-size: 13px; }
+    .header-sub  { font-size: 11px; color: #5F5E5A; margin-top: 2px; }
+
+    /* ── Sections ── */
+    .section {
+      padding: 10px 14px;
+      border-bottom: 1px solid #252527;
+    }
+
+    .label {
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.07em;
+      text-transform: uppercase;
+      color: #444441;
+      margin-bottom: 7px;
+    }
+
+    /* Current session */
+    .domain {
+      font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+      font-size: 13px;
+      color: #9FE1CB;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .url-text {
+      font-family: monospace;
+      font-size: 10px;
+      color: #444441;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      margin-top: 3px;
+    }
+    .timer {
+      font-family: 'Cascadia Code', 'Consolas', monospace;
+      font-size: 11px;
+      color: #73726c;
+      margin-top: 5px;
+    }
+    .no-session { color: #444441; font-size: 12px; }
+
+    /* Stats rows */
+    .row {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      margin-bottom: 5px;
+    }
+    .row:last-child { margin-bottom: 0; }
+    .row-label { color: #73726c; }
+    .row-val   { font-family: monospace; color: #d4d2c8; }
+    .row-val.warn { color: #FAC775; }
+    .row-val.ok   { color: #9FE1CB; }
+    .row-val.bad  { color: #F09595; }
+
+    /* ── Footer ── */
+    .footer {
+      padding: 10px 14px;
+      display: flex;
+      gap: 8px;
+    }
+
+    .btn {
+      flex: 1;
+      padding: 7px 0;
+      border: 1px solid #2e2e30;
+      border-radius: 6px;
+      background: #1e1e20;
+      color: #d4d2c8;
+      font-size: 12px;
+      cursor: pointer;
+      transition: background 0.12s, border-color 0.12s;
+    }
+    .btn:hover:not(:disabled) { background: #252527; border-color: #3a3a3c; }
+    .btn:disabled { opacity: 0.45; cursor: default; }
+
+    .btn-sync {
+      background: #0a4a38;
+      border-color: #1D9E75;
+      color: #9FE1CB;
+      font-weight: 500;
+    }
+    .btn-sync:hover:not(:disabled) { background: #0f6147; }
+
+    .sync-msg {
+      font-size: 11px;
+      text-align: center;
+      color: #73726c;
+      padding: 0 14px 8px;
+      min-height: 20px;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="header">
+    <div class="dot idle" id="dot"></div>
+    <div class="header-text">
+      <div class="header-name">Habit Tracker</div>
+      <div class="header-sub" id="status-sub">Loading…</div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="label">Now Tracking</div>
+    <div id="current-block">
+      <div class="no-session">—</div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="row">
+      <span class="row-label">Pending queue</span>
+      <span class="row-val warn" id="queue-val">—</span>
+    </div>
+    <div class="row">
+      <span class="row-label">Last sync</span>
+      <span class="row-val" id="sync-val">Never</span>
+    </div>
+    <div class="row">
+      <span class="row-label">Bridge API</span>
+      <span class="row-val" id="bridge-val">Checking…</span>
+    </div>
+  </div>
+
+  <div class="footer">
+    <button class="btn btn-sync" id="btn-sync">Sync Now</button>
+    <button class="btn" id="btn-dash">Dashboard →</button>
+  </div>
+  <div class="sync-msg" id="sync-msg"></div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

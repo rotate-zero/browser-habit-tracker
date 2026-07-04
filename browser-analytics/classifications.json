@@ -1,0 +1,77 @@
+[
+  {
+    "category": "Unclassified",
+    "confidence": 0.95,
+    "reason": "Breaking news/disaster coverage not represented in current categories"
+  },
+  {
+    "category": "Work",
+    "confidence": 0.9,
+    "reason": null
+  },
+  {
+    "category": "Learning",
+    "confidence": 0.7,
+    "reason": null
+  },
+  {
+    "category": "Learning",
+    "confidence": 0.7,
+    "reason": null
+  },
+  {
+    "category": "Work",
+    "confidence": 0.85,
+    "reason": null
+  },
+  {
+    "category": "Work",
+    "confidence": 0.85,
+    "reason": null
+  },
+  {
+    "category": "Work",
+    "confidence": 0.9,
+    "reason": null
+  },
+  {
+    "category": "Learning",
+    "confidence": 0.7,
+    "reason": null
+  },
+  {
+    "category": "Work",
+    "confidence": 0.9,
+    "reason": null
+  },
+  {
+    "category": "Learning",
+    "confidence": 0.7,
+    "reason": null
+  },
+  {
+    "category": "Work",
+    "confidence": 0.9,
+    "reason": null
+  },
+  {
+    "category": "Learning",
+    "confidence": 0.7,
+    "reason": null
+  },
+  {
+    "category": "Learning",
+    "confidence": 0.7,
+    "reason": null
+  },
+  {
+    "category": "Work",
+    "confidence": 0.9,
+    "reason": null
+  },
+  {
+    "category": "Work",
+    "confidence": 0.85,
+    "reason": null
+  }
+]
