@@ -5,6 +5,10 @@ export type Summary = {
   top_category: string | null;
   sessions_today: number;
   pending_review: number;
+  period_start: string;
+  period_end: string;
+  period_label: string;
+  has_next: boolean;
 };
 
 export type CategoryStat = { name: string; hours: number };
@@ -29,18 +33,18 @@ async function getJSON<T>(path: string): Promise<T> {
   return res.json();
 }
 
-function qs(startDate?: string | null) {
-  return startDate ? `?start_date=${startDate}` : '';
+function periodQs(periodType: string, offset: number) {
+  return `?period_type=${periodType}&offset=${offset}`;
 }
 
-export function getSummary(startDate?: string | null) {
-  return getJSON<Summary>(`/summary${qs(startDate)}`);
+export function getSummary(periodType: string, offset: number) {
+  return getJSON<Summary>(`/summary${periodQs(periodType, offset)}`);
 }
-export function getCategories(startDate?: string | null) {
-  return getJSON<CategoryStat[]>(`/categories${qs(startDate)}`);
+export function getCategories(periodType: string, offset: number) {
+  return getJSON<CategoryStat[]>(`/categories${periodQs(periodType, offset)}`);
 }
-export function getDomains(startDate?: string | null) {
-  return getJSON<DomainStat[]>(`/domains${qs(startDate)}`);
+export function getDomains(periodType: string, offset: number) {
+  return getJSON<DomainStat[]>(`/domains${periodQs(periodType, offset)}`);
 }
 export function getCandidates() {
   return getJSON<Candidate[]>('/candidates');
@@ -78,8 +82,8 @@ export async function updateSettings(body: Partial<Settings>) {
 export type HeatmapCell = { domain: string; hour: number; minutes: number };
 export type DomainTimelineData = { domains: string[]; data: HeatmapCell[] };
 
-export function getDomainTimeline(startDate?: string | null) {
-  return getJSON<DomainTimelineData>(`/domain-timeline${qs(startDate)}`);
+export function getDomainTimeline(periodType: string, offset: number) {
+  return getJSON<DomainTimelineData>(`/domain-timeline${periodQs(periodType, offset)}`);
 }
 
 export type ClusterMember = {

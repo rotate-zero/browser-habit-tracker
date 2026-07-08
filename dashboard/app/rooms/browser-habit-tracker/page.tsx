@@ -16,10 +16,10 @@ import {
   type DomainTimelineData,
 } from '@/lib/api';
 
-type Period = 'today' | 'week' | 'month' | 'quarter' | 'year' | 'all';
+type Period = 'day' | 'week' | 'month' | 'quarter' | 'year' | 'all';
 
 const PERIODS: { key: Period; label: string }[] = [
-  { key: 'today', label: 'Today' },
+  { key: 'day', label: 'Today' },
   { key: 'week', label: 'This Week' },
   { key: 'month', label: 'This Month' },
   { key: 'quarter', label: 'This Quarter' },
@@ -27,62 +27,22 @@ const PERIODS: { key: Period; label: string }[] = [
   { key: 'all', label: 'All Time' },
 ];
 
-const PERIOD_LABELS: Record<Period, string> = {
-  today: 'today',
-  week: 'last 7 days',
-  month: 'this month',
-  quarter: 'this quarter',
-  year: 'this year',
-  all: 'all time',
-};
-
-// local-time date string, no UTC conversion
-function toDateString(d: Date): string {
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return `${y}-${m}-${day}`;
-}
-
-function getStartDate(period: Period): string | null {
-  const now = new Date();
-  switch (period) {
-    case 'today':
-      return toDateString(now);
-    case 'week': {
-      const d = new Date(now);
-      d.setDate(d.getDate() - 7);
-      return toDateString(d);
-    }
-    case 'month':
-      return toDateString(new Date(now.getFullYear(), now.getMonth(), 1));
-    case 'quarter': {
-      const q = Math.floor(now.getMonth() / 3);
-      return toDateString(new Date(now.getFullYear(), q * 3, 1));
-    }
-    case 'year':
-      return toDateString(new Date(now.getFullYear(), 0, 1));
-    case 'all':
-      return null;
-  }
-}
-
 export default function DashboardPage() {
   const [period, setPeriod] = useState<Period>('month');
+  const [offset, setOffset] = useState(0);
   const [summary, setSummary] = useState<Summary | null>(null);
   const [categories, setCategories] = useState<CategoryStat[]>([]);
   const [domains, setDomains] = useState<DomainStat[]>([]);
   const [timeline, setTimeline] = useState<DomainTimelineData | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const fetchData = useCallback(async (p: Period) => {
+  const fetchData = useCallback(async (p: Period, o: number) => {
     setLoading(true);
-    const startDate = getStartDate(p);
     const [s, c, d, t] = await Promise.all([
-      getSummary(startDate),
-      getCategories(startDate),
-      getDomains(startDate),
-      getDomainTimeline(startDate),
+      getSummary(p, o),
+      getCategories(p, o),
+      getDomains(p, o),
+      getDomainTimeline(p, o),
     ]);
     setSummary(s);
     setCategories(c);
@@ -92,20 +52,41 @@ export default function DashboardPage() {
   }, []);
 
   useEffect(() => {
-    fetchData(period);
-  }, [period, fetchData]);
+    fetchData(period, offset);
+  }, [period, offset, fetchData]);
+
+  // Switching period type starts fresh at the current period rather than
+  // carrying over an offset from a different timeframe's slide position.
+  function selectPeriod(key: Period) {
+    setPeriod(key);
+    setOffset(0);
+  }
+
+  const canSlide = period !== 'all';
+  const canGoBack = canSlide;
+  const canGoForward = canSlide && offset > 0;
+
+  const fallbackLabel = PERIODS.find((p) => p.key === period)?.label ?? '';
+  const rangeLabel = summary?.period_label ?? fallbackLabel;
+
+  const noData =
+    !loading &&
+    summary !== null &&
+    summary.tracked_hours === 0 &&
+    categories.length === 0 &&
+    domains.length === 0;
 
   const fade = loading ? 'opacity-40' : 'opacity-100';
 
   return (
     <div>
       {/* Period selector */}
-      <div className="mb-5 flex flex-wrap gap-2">
+      <div className="mb-3 flex flex-wrap gap-2">
         {PERIODS.map(({ key, label }) => (
           <button
             key={key}
             type="button"
-            onClick={() => setPeriod(key)}
+            onClick={() => selectPeriod(key)}
             className={`rounded-lg px-4 py-1.5 text-sm font-medium transition-colors ${
               period === key
                 ? 'bg-indigo-600 text-white'
@@ -117,10 +98,39 @@ export default function DashboardPage() {
         ))}
       </div>
 
+      {/* Slide controls */}
+      <div className="mb-5 flex items-center gap-3">
+        <button
+          type="button"
+          onClick={() => canGoBack && setOffset((o) => o + 1)}
+          disabled={!canGoBack}
+          aria-label="Previous period"
+          className="flex h-7 w-7 items-center justify-center rounded-lg bg-zinc-800 text-zinc-400 transition-colors hover:bg-zinc-700 hover:text-zinc-100 disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-zinc-800"
+        >
+          &lt;
+        </button>
+        <span className="min-w-0 text-sm font-medium text-zinc-300">{rangeLabel}</span>
+        <button
+          type="button"
+          onClick={() => canGoForward && setOffset((o) => Math.max(0, o - 1))}
+          disabled={!canGoForward}
+          aria-label="Next period"
+          className="flex h-7 w-7 items-center justify-center rounded-lg bg-zinc-800 text-zinc-400 transition-colors hover:bg-zinc-700 hover:text-zinc-100 disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-zinc-800"
+        >
+          &gt;
+        </button>
+      </div>
+
+      {noData && (
+        <div className="mb-4 rounded-xl border border-zinc-800 bg-zinc-900 p-4 text-sm text-zinc-500">
+          No data available for this timeframe.
+        </div>
+      )}
+
       {/* Metric cards */}
       <div className={`mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4 transition-opacity ${fade}`}>
         <MetricCard
-          label={`Tracked, ${PERIOD_LABELS[period]}`}
+          label={`Tracked, ${rangeLabel}`}
           value={summary ? `${summary.tracked_hours}h` : '—'}
         />
         <MetricCard label="Top category" value={summary?.top_category ?? '—'} />

@@ -15,6 +15,7 @@ from pydantic import BaseModel
 
 from db import get_connection
 from candidates import approve_candidate, reject_candidate
+from periods import resolve_period, describe_period
 import settings as settings_module
 
 app = FastAPI(title="Hermes dashboard API")
@@ -28,9 +29,8 @@ app.add_middleware(
 
 
 @app.get("/summary")
-def summary(start_date: Optional[str] = None):
-    # None means all time; fall back to a date far enough back to catch everything
-    since = start_date or "2000-01-01"
+def summary(period_type: str = "all", offset: int = 0):
+    start, end = resolve_period(period_type, offset)
     conn = get_connection()
     try:
         with conn.cursor() as cur:
@@ -39,9 +39,9 @@ def summary(start_date: Optional[str] = None):
                 SELECT coalesce(sum(s.duration_seconds), 0) AS total_seconds
                 FROM session_analysis sa
                 JOIN activity_sessions s ON s.id = sa.session_id
-                WHERE s.start_time >= %s
+                WHERE s.start_time >= %s AND s.start_time < %s
                 """,
-                (since,),
+                (start, end),
             )
             total_seconds = cur.fetchone()["total_seconds"]
 
@@ -51,13 +51,13 @@ def summary(start_date: Optional[str] = None):
                 FROM session_analysis sa
                 JOIN activity_sessions s ON s.id = sa.session_id
                 JOIN categories c ON c.id = sa.category_id
-                WHERE s.start_time >= %s
+                WHERE s.start_time >= %s AND s.start_time < %s
                   AND c.is_default = false
                 GROUP BY c.name
                 ORDER BY seconds DESC
                 LIMIT 1
                 """,
-                (since,),
+                (start, end),
             )
             top = cur.fetchone()
 
@@ -80,14 +80,18 @@ def summary(start_date: Optional[str] = None):
             "top_category": top["name"] if top else None,
             "sessions_today": sessions_today,
             "pending_review": pending_review,
+            "period_start": start.isoformat(),
+            "period_end": end.isoformat(),
+            "period_label": describe_period(period_type, start, end),
+            "has_next": offset > 0 and period_type != "all",
         }
     finally:
         conn.close()
 
 
 @app.get("/categories")
-def categories(start_date: Optional[str] = None):
-    since = start_date or "2000-01-01"
+def categories(period_type: str = "all", offset: int = 0):
+    start, end = resolve_period(period_type, offset)
     conn = get_connection()
     try:
         with conn.cursor() as cur:
@@ -97,11 +101,11 @@ def categories(start_date: Optional[str] = None):
                 FROM session_analysis sa
                 JOIN activity_sessions s ON s.id = sa.session_id
                 JOIN categories c ON c.id = sa.category_id
-                WHERE s.start_time >= %s
+                WHERE s.start_time >= %s AND s.start_time < %s
                 GROUP BY c.name
                 ORDER BY hours DESC
                 """,
-                (since,),
+                (start, end),
             )
             return cur.fetchall()
     finally:
@@ -109,8 +113,8 @@ def categories(start_date: Optional[str] = None):
 
 
 @app.get("/domains")
-def domains(start_date: Optional[str] = None):
-    since = start_date or "2000-01-01"
+def domains(period_type: str = "all", offset: int = 0):
+    start, end = resolve_period(period_type, offset)
     conn = get_connection()
     try:
         with conn.cursor() as cur:
@@ -121,13 +125,13 @@ def domains(start_date: Optional[str] = None):
                        count(*) AS sessions
                 FROM session_analysis sa
                 JOIN activity_sessions s ON s.id = sa.session_id
-                WHERE s.start_time >= %s
+                WHERE s.start_time >= %s AND s.start_time < %s
                   AND sa.normalized_domain IS NOT NULL
                 GROUP BY sa.normalized_domain
                 ORDER BY hours DESC
                 LIMIT 10
                 """,
-                (since,),
+                (start, end),
             )
             return cur.fetchall()
     finally:
@@ -135,12 +139,12 @@ def domains(start_date: Optional[str] = None):
 
 
 @app.get("/domain-timeline")
-def domain_timeline(start_date: Optional[str] = None):
+def domain_timeline(period_type: str = "all", offset: int = 0):
     """Returns hourly activity breakdown for the top 10 domains by time.
     Hours are in Asia/Dhaka time (UTC+6). Change the AT TIME ZONE value
     if you move or want UTC instead.
     """
-    since = start_date or "2000-01-01"
+    start, end = resolve_period(period_type, offset)
     conn = get_connection()
     try:
         with conn.cursor() as cur:
@@ -150,13 +154,13 @@ def domain_timeline(start_date: Optional[str] = None):
                 SELECT sa.normalized_domain AS domain
                 FROM session_analysis sa
                 JOIN activity_sessions s ON s.id = sa.session_id
-                WHERE s.start_time >= %s
+                WHERE s.start_time >= %s AND s.start_time < %s
                   AND sa.normalized_domain IS NOT NULL
                 GROUP BY sa.normalized_domain
                 ORDER BY sum(s.duration_seconds) DESC
                 LIMIT 10
                 """,
-                (since,),
+                (start, end),
             )
             top_domains = [r["domain"] for r in cur.fetchall()]
 
@@ -171,12 +175,12 @@ def domain_timeline(start_date: Optional[str] = None):
                        round(sum(s.duration_seconds) / 60.0, 1) AS minutes
                 FROM session_analysis sa
                 JOIN activity_sessions s ON s.id = sa.session_id
-                WHERE s.start_time >= %s
+                WHERE s.start_time >= %s AND s.start_time < %s
                   AND sa.normalized_domain = ANY(%s)
                 GROUP BY sa.normalized_domain, hour
                 ORDER BY domain, hour
                 """,
-                (since, top_domains),
+                (start, end, top_domains),
             )
             data = cur.fetchall()
 
