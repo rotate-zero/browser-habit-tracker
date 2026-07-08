@@ -135,10 +135,16 @@ def classify_batch(sessions, category_lookup):
     try:
         results = json.loads(_clean_json_text(raw))
     except json.JSONDecodeError as e:
-        raise ValueError(f"Agent returned invalid JSON: {e}") from e
+        preview = raw.strip()[:300] or "(empty response)"
+        raise ValueError(
+            f"Agent returned invalid JSON: {e}. Raw response preview: {preview!r}"
+        ) from e
 
     if not isinstance(results, list) or len(results) != len(sessions):
         got = len(results) if isinstance(results, list) else type(results).__name__
-        raise ValueError(f"Expected {len(sessions)} results, got {got}")
+        preview = raw.strip()[:300] or "(empty response)"
+        raise ValueError(
+            f"Expected {len(sessions)} results, got {got}. Raw response preview: {preview!r}"
+        )
 
     return results

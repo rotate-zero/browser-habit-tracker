@@ -50,7 +50,7 @@ def _run(fetch_fn, verb, past_tense):
         category_lookup, unclassified_id = load_taxonomy(conn)
         try:
             n = process_sessions(conn, sessions, category_lookup, unclassified_id)
-        except ValueError as e:
+        except (ValueError, RuntimeError, ConnectionError, TimeoutError) as e:
             conn.rollback()
             print(f"Batch failed, nothing written: {e}")
             return

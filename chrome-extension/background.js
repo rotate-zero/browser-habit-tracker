@@ -11,8 +11,8 @@ console.log("BACKGROUND SCRIPT LOADED");
 const CFG = {
   BRIDGE:    'http://localhost:3737/sessions',
   INTERVAL:  15,    // minutes between automatic flushes
-  IDLE_SEC:  300,   // 5 min of no mouse/keyboard = end session
-  MIN_SEC:   3,     // discard sessions shorter than this (tab-switch noise)
+  IDLE_SEC:  1800,   // 30 min of no mouse/keyboard = end session
+  MIN_SEC:   10,     // discard sessions shorter than this (tab-switch noise)
   MAX_AGE_H: 8,     // stale open sessions older than this are discarded on startup
 };
 

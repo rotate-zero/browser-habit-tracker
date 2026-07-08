@@ -16,9 +16,10 @@ import {
   type DomainTimelineData,
 } from '@/lib/api';
 
-type Period = 'week' | 'month' | 'quarter' | 'year' | 'all';
+type Period = 'today' | 'week' | 'month' | 'quarter' | 'year' | 'all';
 
 const PERIODS: { key: Period; label: string }[] = [
+  { key: 'today', label: 'Today' },
   { key: 'week', label: 'This Week' },
   { key: 'month', label: 'This Month' },
   { key: 'quarter', label: 'This Quarter' },
@@ -27,6 +28,7 @@ const PERIODS: { key: Period; label: string }[] = [
 ];
 
 const PERIOD_LABELS: Record<Period, string> = {
+  today: 'today',
   week: 'last 7 days',
   month: 'this month',
   quarter: 'this quarter',
@@ -34,26 +36,32 @@ const PERIOD_LABELS: Record<Period, string> = {
   all: 'all time',
 };
 
+// local-time date string, no UTC conversion
+function toDateString(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
 function getStartDate(period: Period): string | null {
   const now = new Date();
   switch (period) {
+    case 'today':
+      return toDateString(now);
     case 'week': {
       const d = new Date(now);
       d.setDate(d.getDate() - 7);
-      return d.toISOString().split('T')[0];
+      return toDateString(d);
     }
     case 'month':
-      return new Date(now.getFullYear(), now.getMonth(), 1)
-        .toISOString()
-        .split('T')[0];
+      return toDateString(new Date(now.getFullYear(), now.getMonth(), 1));
     case 'quarter': {
       const q = Math.floor(now.getMonth() / 3);
-      return new Date(now.getFullYear(), q * 3, 1)
-        .toISOString()
-        .split('T')[0];
+      return toDateString(new Date(now.getFullYear(), q * 3, 1));
     }
     case 'year':
-      return new Date(now.getFullYear(), 0, 1).toISOString().split('T')[0];
+      return toDateString(new Date(now.getFullYear(), 0, 1));
     case 'all':
       return null;
   }
