@@ -13,10 +13,15 @@ const PERIODS: { key: Period; label: string; vsLabel: string }[] = [
 
 function formatSeconds(s: number): string {
   if (s <= 0) return '0m';
-  if (s < 60) return `${s}s`;
-  if (s < 3600) return `${Math.round(s / 60)}m`;
-  const h = Math.floor(s / 3600);
-  const m = Math.round((s % 3600) / 60);
+  if (s < 60) return `${Math.round(s)}s`;
+  // Round to whole minutes once, then derive h/m from that -- rounding
+  // hours and minutes separately (as before) could produce "4h 60m" for
+  // something like 4h 59m 59s, since the leftover-seconds rounding had
+  // nowhere to carry into the hours digit.
+  const totalMinutes = Math.round(s / 60);
+  if (totalMinutes < 60) return `${totalMinutes}m`;
+  const h = Math.floor(totalMinutes / 60);
+  const m = totalMinutes % 60;
   return m > 0 ? `${h}h ${m}m` : `${h}h`;
 }
 
@@ -29,11 +34,26 @@ function buildLookup(rows: MetricRow[], metricType: string): Record<string, numb
   return out;
 }
 
+const SMALL_BASE_SECONDS = 7200; // 2 hours -- below this, "% change" is technically
+                                  // correct but misleading (a 1h27m -> 20h jump reads as
+                                  // "+1297%" instead of what it actually is: a domain that
+                                  // went from barely-touched to genuinely heavy use)
+
 function Delta({ current, previous, vsLabel }: { current: number; previous: number; vsLabel: string }) {
   if (previous === 0) return <span className="text-xs text-zinc-600">no prior data</span>;
   const diff = current - previous;
-  const pct = Math.round(Math.abs(diff / previous) * 100);
   const up = diff >= 0;
+
+  if (previous < SMALL_BASE_SECONDS) {
+    return (
+      <span className={`text-xs ${up ? 'text-emerald-400' : 'text-red-400'}`}>
+        {up ? '↑' : '↓'} {formatSeconds(Math.abs(diff))} {vsLabel}{' '}
+        <span className="text-zinc-600">(was {formatSeconds(previous)})</span>
+      </span>
+    );
+  }
+
+  const pct = Math.round(Math.abs(diff / previous) * 100);
   return (
     <span className={`text-xs ${up ? 'text-emerald-400' : 'text-red-400'}`}>
       {up ? '↑' : '↓'} {formatSeconds(Math.abs(diff))} ({up ? '+' : '-'}{pct}%) {vsLabel}

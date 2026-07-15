@@ -5,15 +5,19 @@ import MetricCard from '@/components/MetricCard';
 import CategoryChart from '@/components/CategoryChart';
 import DomainChart from '@/components/DomainChart';
 import DomainTimelineChart from '@/components/DomainTimelineChart';
+import CategoryTrendChart from '@/components/CategoryTrendChart';
+import CategoryBundleChart from '@/components/CategoryBundleChart';
 import {
   getSummary,
   getCategories,
   getDomains,
   getDomainTimeline,
+  getCategoryTrend,
   type Summary,
   type CategoryStat,
   type DomainStat,
   type DomainTimelineData,
+  type CategoryTrendData,
 } from '@/lib/api';
 
 type Period = 'day' | 'week' | 'month' | 'quarter' | 'year' | 'all';
@@ -34,20 +38,26 @@ export default function DashboardPage() {
   const [categories, setCategories] = useState<CategoryStat[]>([]);
   const [domains, setDomains] = useState<DomainStat[]>([]);
   const [timeline, setTimeline] = useState<DomainTimelineData | null>(null);
+  const [trend, setTrend] = useState<CategoryTrendData | null>(null);
   const [loading, setLoading] = useState(true);
 
   const fetchData = useCallback(async (p: Period, o: number) => {
     setLoading(true);
-    const [s, c, d, t] = await Promise.all([
+    // Trend chart doesn't exist for All Time -- there's no coherent set
+    // of "prior all-times" to tile, so skip fetching it entirely rather
+    // than asking the backend to reject it every time.
+    const [s, c, d, t, tr] = await Promise.all([
       getSummary(p, o),
       getCategories(p, o),
       getDomains(p, o),
       getDomainTimeline(p, o),
+      p === 'all' ? Promise.resolve(null) : getCategoryTrend(p, o),
     ]);
     setSummary(s);
     setCategories(c);
     setDomains(d);
     setTimeline(t);
+    setTrend(tr);
     setLoading(false);
   }, []);
 
@@ -148,6 +158,23 @@ export default function DashboardPage() {
       <div className={`mb-4 rounded-xl border border-zinc-800 bg-zinc-900 p-5 transition-opacity ${fade}`}>
         <CategoryChart data={categories} />
       </div>
+
+      {/* Top categories over time -- not shown for All Time, there's no
+          coherent set of "prior all-times" to compare against */}
+      {period !== 'all' && (
+        <div className={`mb-4 rounded-xl border border-zinc-800 bg-zinc-900 p-5 transition-opacity ${fade}`}>
+          <CategoryTrendChart data={trend} />
+        </div>
+      )}
+
+      {/* Same data, bundled by category instead of by period -- each
+          category's own bars fade from oldest (lightest) to newest (full
+          color) so trend direction reads at a glance per category. */}
+      {period !== 'all' && (
+        <div className={`mb-4 rounded-xl border border-zinc-800 bg-zinc-900 p-5 transition-opacity ${fade}`}>
+          <CategoryBundleChart data={trend} />
+        </div>
+      )}
 
       {/* Domain totals */}
       <div className={`mb-4 grid gap-4 sm:grid-cols-2 transition-opacity ${fade}`}>

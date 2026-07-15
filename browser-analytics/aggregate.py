@@ -145,4 +145,16 @@ def run_aggregation(ref_date: date = None):
 
 
 if __name__ == "__main__":
-    run_aggregation()
+    import argparse
+
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--date", type=str, default=None,
+        help="Recompute day/week/month metrics as of this date (YYYY-MM-DD) instead "
+             "of today. Useful for refreshing a stale historical snapshot -- e.g. a "
+             "month whose analysis_metrics row was written before backlog "
+             "classification caught up, and never got a later run to overwrite it.",
+    )
+    args = parser.parse_args()
+    ref = date.fromisoformat(args.date) if args.date else None
+    run_aggregation(ref_date=ref)

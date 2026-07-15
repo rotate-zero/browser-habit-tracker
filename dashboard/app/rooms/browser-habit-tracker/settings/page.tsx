@@ -131,6 +131,66 @@ export default function SettingsPage() {
         />
       </div>
 
+      {/* Trend chart lookback */}
+      <div className="mb-4 rounded-xl border border-zinc-800 bg-zinc-900 p-5">
+        <p className="mb-1 text-sm text-zinc-400">
+          Trend chart lookback{saving ? ' · saving…' : ''}
+        </p>
+        <p className="mb-3.5 text-xs text-zinc-600">
+          How many periods back the &ldquo;Top categories over time&rdquo; chart shows, per tab.
+        </p>
+        <ThresholdSlider
+          label="Day"
+          min={1}
+          max={5}
+          step={1}
+          value={settings.trend_lookback_day}
+          onChange={(v) => updateLocal({ trend_lookback_day: v })}
+          onCommit={(v) => persist({ trend_lookback_day: v })}
+          suffix=" days"
+        />
+        <ThresholdSlider
+          label="Week"
+          min={1}
+          max={5}
+          step={1}
+          value={settings.trend_lookback_week}
+          onChange={(v) => updateLocal({ trend_lookback_week: v })}
+          onCommit={(v) => persist({ trend_lookback_week: v })}
+          suffix=" weeks"
+        />
+        <ThresholdSlider
+          label="Month"
+          min={1}
+          max={5}
+          step={1}
+          value={settings.trend_lookback_month}
+          onChange={(v) => updateLocal({ trend_lookback_month: v })}
+          onCommit={(v) => persist({ trend_lookback_month: v })}
+          suffix=" months"
+        />
+        <ThresholdSlider
+          label="Quarter"
+          min={1}
+          max={5}
+          step={1}
+          value={settings.trend_lookback_quarter}
+          onChange={(v) => updateLocal({ trend_lookback_quarter: v })}
+          onCommit={(v) => persist({ trend_lookback_quarter: v })}
+          suffix=" quarters"
+        />
+        <ThresholdSlider
+          label="Year"
+          min={1}
+          max={5}
+          step={1}
+          value={settings.trend_lookback_year}
+          onChange={(v) => updateLocal({ trend_lookback_year: v })}
+          onCommit={(v) => persist({ trend_lookback_year: v })}
+          suffix=" years"
+        />
+      </div>
+
       {/* Clustered review -- only shown after Agent 2 has run */}
       {clusters.length > 0 && (
         <div className="mb-4 rounded-xl border border-zinc-800 bg-zinc-900 p-5">

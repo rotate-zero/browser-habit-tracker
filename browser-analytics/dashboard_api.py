@@ -11,7 +11,7 @@ from typing import Optional
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from db import get_connection
 from candidates import approve_candidate, reject_candidate
@@ -189,6 +189,82 @@ def domain_timeline(period_type: str = "all", offset: int = 0):
         conn.close()
 
 
+@app.get("/category-trend")
+def category_trend(period_type: str = "week", offset: int = 0):
+    """Top 8 categories (ranked by the current single period only, same
+    window /summary and /categories use) shown across the current period
+    plus N-1 prior periods, where N is the configurable lookback for
+    this period_type (app_settings.trend_lookback_<period_type>, 1-5).
+
+    Not available for 'all' -- there's no coherent set of "prior all
+    times" to tile.
+    """
+    if period_type not in ("day", "week", "month", "quarter", "year"):
+        raise HTTPException(
+            status_code=400,
+            detail=f"category-trend is not available for period_type={period_type!r}",
+        )
+
+    conn = get_connection()
+    try:
+        settings_row = settings_module.get_settings(conn)
+        lookback = settings_row[f"trend_lookback_{period_type}"]
+
+        current_start, current_end = resolve_period(period_type, offset)
+
+        with conn.cursor() as cur:
+            # Rank by the current period alone, per the product decision here:
+            # a category that spiked in the last few days but is quiet today
+            # should still show up on the Week tab even if it wouldn't top
+            # today's own ranking.
+            cur.execute(
+                """
+                SELECT c.name, sum(s.duration_seconds) AS seconds
+                FROM session_analysis sa
+                JOIN activity_sessions s ON s.id = sa.session_id
+                JOIN categories c ON c.id = sa.category_id
+                WHERE s.start_time >= %s AND s.start_time < %s
+                  AND c.is_default = false
+                GROUP BY c.name
+                ORDER BY seconds DESC
+                LIMIT 8
+                """,
+                (current_start, current_end),
+            )
+            top_categories = [r["name"] for r in cur.fetchall()]
+
+            if not top_categories:
+                return {"period_type": period_type, "categories": [], "periods": []}
+
+            periods = []
+            for i in range(lookback):
+                o = offset + i
+                p_start, p_end = resolve_period(period_type, o)
+                cur.execute(
+                    """
+                    SELECT c.name, round(sum(s.duration_seconds) / 3600.0, 2) AS hours
+                    FROM session_analysis sa
+                    JOIN activity_sessions s ON s.id = sa.session_id
+                    JOIN categories c ON c.id = sa.category_id
+                    WHERE s.start_time >= %s AND s.start_time < %s
+                      AND c.name = ANY(%s)
+                    GROUP BY c.name
+                    """,
+                    (p_start, p_end, top_categories),
+                )
+                values = {r["name"]: r["hours"] for r in cur.fetchall()}
+                periods.append({
+                    "offset": o,
+                    "label": describe_period(period_type, p_start, p_end),
+                    "values": values,
+                })
+
+        periods.reverse()  # oldest -> newest, left-to-right chart reading
+        return {"period_type": period_type, "categories": top_categories, "periods": periods}
+    finally:
+        conn.close()
+
+
 @app.get("/candidates")
 def candidates(status: str = "pending"):
     conn = get_connection()
@@ -244,6 +320,11 @@ class SettingsBody(BaseModel):
     occurrence_threshold: Optional[int] = None
     duration_threshold_hours: Optional[float] = None
     max_reason_length: Optional[int] = None
+    trend_lookback_day: Optional[int] = Field(default=None, ge=1, le=5)
+    trend_lookback_week: Optional[int] = Field(default=None, ge=1, le=5)
+    trend_lookback_month: Optional[int] = Field(default=None, ge=1, le=5)
+    trend_lookback_quarter: Optional[int] = Field(default=None, ge=1, le=5)
+    trend_lookback_year: Optional[int] = Field(default=None, ge=1, le=5)
 
 
 @app.get("/settings")
@@ -256,6 +337,11 @@ def get_settings_route():
             "occurrence_threshold": s["occurrence_threshold"],
             "duration_threshold_hours": round(s["duration_threshold_seconds"] / 3600, 1),
             "max_reason_length": s["max_reason_length"],
+            "trend_lookback_day": s["trend_lookback_day"],
+            "trend_lookback_week": s["trend_lookback_week"],
+            "trend_lookback_month": s["trend_lookback_month"],
+            "trend_lookback_quarter": s["trend_lookback_quarter"],
+            "trend_lookback_year": s["trend_lookback_year"],
         }
     finally:
         conn.close()
@@ -269,6 +355,11 @@ def update_settings_route(body: SettingsBody):
             "batch_size": body.batch_size,
             "occurrence_threshold": body.occurrence_threshold,
             "max_reason_length": body.max_reason_length,
+            "trend_lookback_day": body.trend_lookback_day,
+            "trend_lookback_week": body.trend_lookback_week,
+            "trend_lookback_month": body.trend_lookback_month,
+            "trend_lookback_quarter": body.trend_lookback_quarter,
+            "trend_lookback_year": body.trend_lookback_year,
         }
         if body.duration_threshold_hours is not None:
             kwargs["duration_threshold_seconds"] = int(body.duration_threshold_hours * 3600)
@@ -279,6 +370,11 @@ def update_settings_route(body: SettingsBody):
             "occurrence_threshold": s["occurrence_threshold"],
             "duration_threshold_hours": round(s["duration_threshold_seconds"] / 3600, 1),
             "max_reason_length": s["max_reason_length"],
+            "trend_lookback_day": s["trend_lookback_day"],
+            "trend_lookback_week": s["trend_lookback_week"],
+            "trend_lookback_month": s["trend_lookback_month"],
+            "trend_lookback_quarter": s["trend_lookback_quarter"],
+            "trend_lookback_year": s["trend_lookback_year"],
         }
     finally:
         conn.close()

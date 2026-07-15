@@ -25,6 +25,11 @@ export type Settings = {
   occurrence_threshold: number;
   duration_threshold_hours: number;
   max_reason_length: number;
+  trend_lookback_day: number;
+  trend_lookback_week: number;
+  trend_lookback_month: number;
+  trend_lookback_quarter: number;
+  trend_lookback_year: number;
 };
 
 async function getJSON<T>(path: string): Promise<T> {
@@ -45,6 +50,21 @@ export function getCategories(periodType: string, offset: number) {
 }
 export function getDomains(periodType: string, offset: number) {
   return getJSON<DomainStat[]>(`/domains${periodQs(periodType, offset)}`);
+}
+
+export type CategoryTrendPeriod = {
+  offset: number;
+  label: string;
+  values: Record<string, number>;
+};
+export type CategoryTrendData = {
+  period_type: string;
+  categories: string[];
+  periods: CategoryTrendPeriod[];
+};
+
+export function getCategoryTrend(periodType: string, offset: number) {
+  return getJSON<CategoryTrendData>(`/category-trend${periodQs(periodType, offset)}`);
 }
 export function getCandidates() {
   return getJSON<Candidate[]>('/candidates');
